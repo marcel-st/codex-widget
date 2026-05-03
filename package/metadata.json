@@ -1,0 +1,20 @@
+{
+  "KPlugin": {
+    "Authors": [
+      {
+        "Email": "",
+        "Name": "Marcel"
+      }
+    ],
+    "Category": "System Information",
+    "Description": "Shows Codex usage statistics from the local Codex state database.",
+    "Icon": "utilities-system-monitor",
+    "Id": "nl.marcel.codexusage",
+    "License": "MIT",
+    "Name": "Codex Usage",
+    "Version": "0.1.0",
+    "Website": "https://github.com/marcel-st/codex-widget"
+  },
+  "KPackageStructure": "Plasma/Applet",
+  "X-Plasma-API-Minimum-Version": "6.0"
+}
