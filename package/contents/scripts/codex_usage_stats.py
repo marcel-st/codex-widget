@@ -54,6 +54,58 @@ def latest_token_snapshot(home: Path) -> dict | None:
     return None
 
 
+def is_spark_model(model: str | None) -> bool:
+    return "gpt-5.3-codex-spark" in (model or "").lower()
+
+
+def usage_limit_snapshots(home: Path) -> dict:
+    sessions_dir = home / "sessions"
+    limits = {
+        "regular": None,
+        "spark": None,
+    }
+    if not sessions_dir.exists():
+        return limits
+
+    rollouts = sorted(
+        sessions_dir.glob("**/rollout-*.jsonl"),
+        key=lambda path: path.stat().st_mtime,
+        reverse=True,
+    )
+    for rollout in rollouts[:40]:
+        current_model = None
+        latest = None
+        try:
+            with rollout.open("r", encoding="utf-8") as handle:
+                for line in handle:
+                    if '"model"' not in line and '"token_count"' not in line:
+                        continue
+                    event = json.loads(line)
+                    payload = event.get("payload", {})
+                    if "model" in payload:
+                        current_model = payload.get("model")
+                    if payload.get("type") == "token_count" and payload.get("rate_limits"):
+                        latest = {
+                            "model": current_model,
+                            "rate_limits": payload["rate_limits"],
+                            "timestamp": event.get("timestamp"),
+                            "rollout_path": str(rollout),
+                        }
+        except (OSError, json.JSONDecodeError):
+            continue
+
+        if not latest:
+            continue
+
+        key = "spark" if is_spark_model(latest["model"]) else "regular"
+        if limits[key] is None:
+            limits[key] = latest
+        if all(limits.values()):
+            break
+
+    return limits
+
+
 def main() -> int:
     home = codex_home()
     db_path = home / "state_5.sqlite"
@@ -126,6 +178,7 @@ def main() -> int:
                     "last_thread": dict(latest) if latest else None,
                     "last_updated_ms": int(total["last_updated"]),
                     "latest_token_snapshot": latest_token_snapshot(home),
+                    "usage_limits": usage_limit_snapshots(home),
                 }
             )
         )

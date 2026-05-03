@@ -35,9 +35,32 @@ PlasmoidItem {
         return stats.latest_token_snapshot.rate_limits[which] || null
     }
 
+    function usageLimit(group, which) {
+        if (!stats.usage_limits || !stats.usage_limits[group] || !stats.usage_limits[group].rate_limits) {
+            return null
+        }
+        return stats.usage_limits[group].rate_limits[which] || null
+    }
+
     function formatPercent(value) {
         var n = Number(value || 0)
         return n.toFixed(n >= 10 ? 0 : 1) + "%"
+    }
+
+    function formatLimit(group, which) {
+        var limit = usageLimit(group, which)
+        if (!limit || limit.used_percent === undefined) {
+            return "No local data"
+        }
+        return formatPercent(limit.used_percent)
+    }
+
+    function formatReset(group, which) {
+        var limit = usageLimit(group, which)
+        if (!limit || !limit.resets_at) {
+            return ""
+        }
+        return "Resets " + Qt.formatDateTime(new Date(limit.resets_at * 1000), "ddd HH:mm")
     }
 
     function compactText() {
@@ -70,31 +93,44 @@ PlasmoidItem {
     }
 
     compactRepresentation: Item {
-        implicitWidth: Kirigami.Units.gridUnit * 6
-        implicitHeight: Kirigami.Units.gridUnit * 2
+        id: compactRoot
+
+        readonly property int iconSize: Kirigami.Units.iconSizes.smallMedium
+
+        clip: true
+        implicitWidth: iconSize + Kirigami.Units.smallSpacing + compactLabel.implicitWidth
+        implicitHeight: Math.max(iconSize, compactLabel.implicitHeight)
 
         RowLayout {
             anchors.fill: parent
             spacing: Kirigami.Units.smallSpacing
 
             Kirigami.Icon {
+                id: compactIcon
+
                 source: "utilities-system-monitor"
-                Layout.preferredWidth: Kirigami.Units.iconSizes.smallMedium
-                Layout.preferredHeight: Kirigami.Units.iconSizes.smallMedium
+                Layout.preferredWidth: compactRoot.iconSize
+                Layout.preferredHeight: compactRoot.iconSize
             }
 
             PlasmaComponents.Label {
+                id: compactLabel
+
                 text: root.compactText()
                 font.bold: true
                 elide: Text.ElideRight
+                maximumLineCount: 1
+                clip: true
                 Layout.fillWidth: true
+                Layout.minimumWidth: 0
+                Layout.maximumWidth: Math.max(0, compactRoot.width - compactIcon.width - parent.spacing)
             }
         }
     }
 
     fullRepresentation: Item {
-        implicitWidth: Kirigami.Units.gridUnit * 16
-        implicitHeight: Kirigami.Units.gridUnit * 11
+        implicitWidth: Kirigami.Units.gridUnit * 18
+        implicitHeight: Kirigami.Units.gridUnit * 14
 
         ColumnLayout {
             anchors.fill: parent
@@ -135,30 +171,79 @@ PlasmoidItem {
                 PlasmaComponents.Label { text: root.formatTokens(root.stats.total_tokens); font.bold: true; Layout.alignment: Qt.AlignRight }
                 PlasmaComponents.Label { text: "Sessions"; opacity: 0.75 }
                 PlasmaComponents.Label { text: String(root.stats.sessions || 0); font.bold: true; Layout.alignment: Qt.AlignRight }
-                PlasmaComponents.Label { text: "Primary limit"; opacity: 0.75; visible: root.latestLimit("primary") !== null }
-                PlasmaComponents.Label {
-                    text: root.latestLimit("primary") ? root.formatPercent(root.latestLimit("primary").used_percent) : ""
-                    font.bold: true
-                    visible: root.latestLimit("primary") !== null
-                    Layout.alignment: Qt.AlignRight
-                }
-                PlasmaComponents.Label { text: "Weekly limit"; opacity: 0.75; visible: root.latestLimit("secondary") !== null }
-                PlasmaComponents.Label {
-                    text: root.latestLimit("secondary") ? root.formatPercent(root.latestLimit("secondary").used_percent) : ""
-                    font.bold: true
-                    visible: root.latestLimit("secondary") !== null
-                    Layout.alignment: Qt.AlignRight
-                }
             }
 
             PlasmaComponents.Label {
-                visible: root.stats.ok && root.stats.last_thread
-                text: root.stats.last_thread ? root.stats.last_thread.title : ""
-                elide: Text.ElideRight
-                maximumLineCount: 2
-                wrapMode: Text.Wrap
-                opacity: 0.8
+                visible: root.stats.ok
+                text: "Usage limits"
+                font.bold: true
                 Layout.fillWidth: true
+            }
+
+            GridLayout {
+                visible: root.stats.ok
+                columns: 3
+                rowSpacing: Kirigami.Units.smallSpacing
+                columnSpacing: Kirigami.Units.largeSpacing
+                Layout.fillWidth: true
+
+                PlasmaComponents.Label { text: ""; opacity: 0.75 }
+                PlasmaComponents.Label { text: "5h"; opacity: 0.75; Layout.alignment: Qt.AlignRight }
+                PlasmaComponents.Label { text: "Weekly"; opacity: 0.75; Layout.alignment: Qt.AlignRight }
+
+                PlasmaComponents.Label { text: "Regular"; font.bold: true }
+                PlasmaComponents.Label {
+                    text: root.formatLimit("regular", "primary")
+                    font.bold: true
+                    Layout.alignment: Qt.AlignRight
+                }
+                PlasmaComponents.Label {
+                    text: root.formatLimit("regular", "secondary")
+                    font.bold: true
+                    Layout.alignment: Qt.AlignRight
+                }
+
+                PlasmaComponents.Label { text: "5.3 Spark"; font.bold: true }
+                PlasmaComponents.Label {
+                    text: root.formatLimit("spark", "primary")
+                    font.bold: true
+                    Layout.alignment: Qt.AlignRight
+                }
+                PlasmaComponents.Label {
+                    text: root.formatLimit("spark", "secondary")
+                    font.bold: true
+                    Layout.alignment: Qt.AlignRight
+                }
+
+                PlasmaComponents.Label {
+                    text: "Regular reset"
+                    opacity: 0.65
+                }
+                PlasmaComponents.Label {
+                    text: root.formatReset("regular", "primary")
+                    opacity: 0.65
+                    Layout.alignment: Qt.AlignRight
+                }
+                PlasmaComponents.Label {
+                    text: root.formatReset("regular", "secondary")
+                    opacity: 0.65
+                    Layout.alignment: Qt.AlignRight
+                }
+
+                PlasmaComponents.Label {
+                    text: "Spark reset"
+                    opacity: 0.65
+                }
+                PlasmaComponents.Label {
+                    text: root.formatReset("spark", "primary")
+                    opacity: 0.65
+                    Layout.alignment: Qt.AlignRight
+                }
+                PlasmaComponents.Label {
+                    text: root.formatReset("spark", "secondary")
+                    opacity: 0.65
+                    Layout.alignment: Qt.AlignRight
+                }
             }
 
             PlasmaComponents.Label {

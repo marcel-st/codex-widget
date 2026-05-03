@@ -12,6 +12,13 @@ aggregates the existing `threads.tokens_used` counters. It also reads the most
 recent local rollout JSONL token snapshot, when available, to show cached
 Codex rate-limit usage percentages.
 
+The compact panel widget shows the latest 5-hour usage percentage when local
+rate-limit telemetry is available. Clicking the widget opens a detailed view
+with token totals plus a usage-limits table for regular Codex usage and
+`gpt-5.3-codex-spark`. Each row shows the cached 5-hour and weekly usage
+percentages and reset times. Model-specific rows show `No local data` until a
+local rollout for that model has recorded rate-limit telemetry.
+
 ## Install
 
 ```bash
@@ -38,6 +45,7 @@ The JSON includes:
 - `sessions`
 - `last_thread`
 - `latest_token_snapshot`
+- `usage_limits`
 
 ## Notes
 
